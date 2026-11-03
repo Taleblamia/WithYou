@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Ajout Vidéo</title>
+</head>
+<body style="font-family: Arial; padding: 20px;">
+
+<h2>📹 Ajouter une vidéo à un salon</h2>
+
+<label>ID du salon :</label><br>
+<input id="salon_id" style="width:400px;" placeholder="id_salon"><br><br>
+
+<label>Lien YouTube de la vidéo :</label><br>
+<input id="video_url" style="width:400px;" placeholder="https://www.youtube.com/watch?v=dxDNu8rvKTo"><br><br>
+
+<button onclick="addVideo()">Ajouter la vidéo</button>
+
+<h3>Résultat :</h3>
+<pre id="output" style="background:#eee; padding:10px; width:500px;"></pre>
+
+<script>
+const API = "http://127.0.0.1:8000/api";
+
+async function addVideo() {
+    const salon_id = document.getElementById("salon_id").value;
+    const url      = document.getElementById("video_url").value;
+
+    const res = await fetch(`${API}/salons/${salon_id}/playlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url })
+    });
+
+    const result = await res.json();
+    document.getElementById("output").textContent = JSON.stringify(result, null, 2);
+}
+</script>
+</body>
+</html>

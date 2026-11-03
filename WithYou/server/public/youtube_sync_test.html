@@ -1,0 +1,137 @@
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Synchronisation YouTube (Socket.io)</title>
+</head>
+<body>
+
+<h2>🎬 Test Synchronisation YouTube (Socket.io)</h2>
+
+ID du salon :
+<input id="salonId" value="salon1"><br><br>
+
+ID YouTube :
+<input id="videoId" value="dQw4w9WgXcQ"><br><br>
+
+<button onclick="loadVideo()">🎥 Charger vidéo</button>
+<button onclick="playVideo()">▶ Play</button>
+<button onclick="pauseVideo()">⏸ Pause</button>
+<button onclick="syncTime()">⏱ Sync time</button>
+
+<h3>Résultat :</h3>
+<pre id="log"></pre>
+
+<div id="player"></div>
+
+<!-- LIBRAIRIES -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script>
+/* ------------------------
+   YOUTUBE PLAYER FIX
+------------------------- */
+let player;
+
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player("player", {
+        height: '360',
+        width: '640',
+        videoId: "",
+        playerVars: {
+            autoplay: 0,
+            controls: 1
+        },
+        events: {
+            'onReady': onPlayerReady
+        }
+    });
+}
+
+function onPlayerReady() {
+    console.log("Player YouTube prêt !");
+}
+
+/* ------------------------
+   SOCKET.IO
+------------------------- */
+const socket = io("http://localhost:3001");
+
+function log(msg) {
+    document.getElementById("log").innerText += msg + "\n";
+}
+
+socket.on("connect", () => {
+    log("🟢 Connecté au serveur WebSocket !");
+    socket.emit("joinSalon", salonId.value);
+});
+
+/* ------------------------
+   RÉCEPTION
+------------------------- */
+
+socket.on("stateUpdate", (state) => {
+    log("⬅️ État reçu : " + JSON.stringify(state));
+
+    if (!player) return;
+    if (!state.youtube_id) return;
+
+    player.loadVideoById(state.youtube_id);
+    player.seekTo(state.time, true);
+
+    if (state.status === "playing") player.playVideo();
+    else player.pauseVideo();
+});
+
+socket.on("loadVideo", ({ youtube_id }) => {
+    player.loadVideoById(youtube_id);
+});
+
+socket.on("playVideo", () => {
+    player.playVideo();
+});
+
+socket.on("pauseVideo", ({ time }) => {
+    player.seekTo(time, true);
+    player.pauseVideo();
+});
+
+socket.on("syncTime", ({ time }) => {
+    player.seekTo(time, true);
+});
+
+/* ------------------------
+   ENVOI
+------------------------- */
+function loadVideo() {
+    socket.emit("loadVideo", {
+        salonId: salonId.value,
+        youtube_id: videoId.value
+    });
+}
+
+function playVideo() {
+    socket.emit("playVideo", {
+        salonId: salonId.value
+    });
+}
+
+function pauseVideo() {
+    socket.emit("pauseVideo", {
+        salonId: salonId.value,
+        time: player.getCurrentTime()
+    });
+}
+
+function syncTime() {
+    socket.emit("syncTime", {
+        salonId: salonId.value,
+        time: player.getCurrentTime()
+    });
+    
+}
+
+</script>
+
+</body>
+</html>

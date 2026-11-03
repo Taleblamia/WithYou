@@ -1,0 +1,407 @@
+/**
+ * Projet : WithYou
+ * Fichier : pages/SignUpPage.tsx
+ *
+ * Description :
+ * Cette page implémente l'interface d'inscription des utilisateurs à la plateforme WithYou.
+ * Elle permet la création d'un compte via un formulaire contrôlé (nom, email, mot de passe),
+ * avec des validations côté client et un retour visuel immédiat.
+ *
+ * Fonctionnalités principales :
+ * - Saisie et validation des informations utilisateur
+ * - Vérification de la force et de la confirmation du mot de passe
+ * - Gestion des erreurs et succès via des notifications
+ * - Navigation vers les pages d'authentification associées
+ *
+ * Cette page s'intègre dans le système d'authentification global
+ * et respecte le design system ainsi que les modes clair et sombre.
+ */
+import { useState } from "react";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Label } from "../components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Logo } from "../components/ui/Logo";
+import { User, Mail, Lock, ArrowRight, Sparkles, Check, GraduationCap, BookOpen } from "lucide-react";
+import { toast } from "sonner";
+import { register, resendConfirmationEmail } from "../api/auth";
+
+interface SignUpPageProps {
+  onNavigate: (page: string) => void;
+  onSignUp: (email: string, name: string) => void;
+  theme?: "light" | "dark";
+  onThemeToggle?: () => void;
+}
+
+export function SignUpPage({ onNavigate, onSignUp, theme = "dark", onThemeToggle }: SignUpPageProps) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<"teacher" | "student" | "">("");
+  const [specialty, setSpecialty] = useState<"informatique" | "physique" | "mathematiques" | "">("");
+
+  const passwordStrength = password.length >= 8;
+  const passwordsMatch = password === confirmPassword && password.length > 0;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!emailRegex.test(email)) {
+      toast.error("Email invalide");
+      return;
+    }
+
+
+    if (password !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (!role) {
+      toast.error("Veuillez sélectionner votre rôle (Professeur ou Étudiant)");
+      return;
+    }
+
+    if (!specialty) {
+      toast.error(role === "teacher" ? "Veuillez sélectionner votre spécialité" : "Veuillez sélectionner votre formation");
+      return;
+    }
+
+    try {
+      const result = await register({
+        username: name,
+        email,
+        password,
+        password_confirmation: confirmPassword,
+        role,
+        specialty,
+      });
+
+      if (result.requiresEmailConfirmation) {
+        toast.success("Compte créé. Vérifiez votre boîte mail.");
+        onSignUp(result.email, name);
+        return;
+      }
+
+      toast.success("Compte créé avec succès !");
+      onSignUp(result.email, name);
+    } catch (err: any) {
+      const message = String(err?.message || "");
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes("user already registered")) {
+        try {
+          await resendConfirmationEmail(email);
+          toast.error("Compte existant. Email de confirmation renvoyé.");
+          onSignUp(email, name || email.split("@")[0]);
+        } catch {
+          toast.error("Compte existant. Connectez-vous.");
+          onNavigate("signin");
+        }
+        return;
+      }
+
+      if (normalized.includes("error sending confirmation email")) {
+        toast.error("Erreur d'envoi d'email. Contactez l'admin ou réessayez.");
+        return;
+      }
+
+      toast.error("Erreur d'inscription : " + message);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen relative overflow-hidden ${theme === "dark" ? "bg-black" : "bg-gray-50"}`}>
+      {/* Theme Toggle Button */}
+      {onThemeToggle && (
+        <button
+          onClick={onThemeToggle}
+          className={`fixed top-4 right-4 z-50 p-3 rounded-full ${theme === "dark"
+            ? "bg-zinc-800 hover:bg-zinc-700 text-yellow-400"
+            : "bg-white hover:bg-gray-100 text-gray-700 shadow-lg"
+            } transition-all duration-300`}
+        >
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
+      )}
+
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className={`absolute top-20 left-10 w-72 h-72 ${theme === "dark" ? "bg-red-600/20" : "bg-red-200/40"
+          } rounded-full blur-3xl animate-pulse-glow`}></div>
+        <div className={`absolute bottom-20 right-10 w-96 h-96 ${theme === "dark" ? "bg-red-800/20" : "bg-red-300/40"
+          } rounded-full blur-3xl animate-pulse-glow`} style={{ animationDelay: '1s' }}></div>
+        <div className={`absolute top-1/2 left-1/2 w-80 h-80 ${theme === "dark" ? "bg-red-700/10" : "bg-red-100/30"
+          } rounded-full blur-3xl animate-pulse-glow`} style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        <Card className={`w-full max-w-md ${theme === "dark"
+          ? "bg-zinc-900 border-zinc-800"
+          : "bg-white border-gray-200 shadow-2xl"
+          }`}>
+          <CardHeader className="text-center space-y-4 pb-8">
+            <div className="flex justify-center mb-2">
+              <Logo size="lg" />
+            </div>
+            <div>
+              <CardTitle className={`text-3xl mb-2 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                <span className="font-display">CRÉER UN COMPTE</span>
+              </CardTitle>
+              <CardDescription className={theme === "dark" ? "text-gray-400 text-base" : "text-gray-600 text-base"}>
+                Rejoignez la communauté WithYou
+              </CardDescription>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Name Field */}
+              <div className="space-y-2">
+                <Label htmlFor="name" className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>
+                  Nom complet
+                </Label>
+                <div className="relative">
+                  <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"
+                    }`} />
+                  <Input
+                    id="name"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={`pl-10 ${theme === "dark"
+                      ? "bg-black border-zinc-800 text-white placeholder:text-gray-500 focus:border-red-600"
+                      : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-red-500"
+                      }`}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Email Field */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>
+                  Email
+                </Label>
+                <div className="relative">
+                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"
+                    }`} />
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="vous@exemple.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`pl-10 ${theme === "dark"
+                      ? "bg-black border-zinc-800 text-white placeholder:text-gray-500 focus:border-red-600"
+                      : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-red-500"
+                      }`}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div className="space-y-2">
+                <Label htmlFor="password" className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>
+                  Mot de passe
+                </Label>
+                <div className="relative">
+                  <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"
+                    }`} />
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`pl-10 ${theme === "dark"
+                      ? "bg-black border-zinc-800 text-white placeholder:text-gray-500 focus:border-red-600"
+                      : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-red-500"
+                      }`}
+                    required
+                  />
+                </div>
+                {password.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className={`h-1 flex-1 rounded-full ${passwordStrength
+                      ? theme === "dark" ? "bg-green-600" : "bg-green-500"
+                      : theme === "dark" ? "bg-red-600" : "bg-red-500"
+                      }`} />
+                    <span className={`text-xs ${passwordStrength
+                      ? theme === "dark" ? "text-green-500" : "text-green-600"
+                      : theme === "dark" ? "text-red-500" : "text-red-600"
+                      }`}>
+                      {passwordStrength ? "Fort" : "Faible"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm Password Field */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>
+                  Confirmer le mot de passe
+                </Label>
+                <div className="relative">
+                  <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"
+                    }`} />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`pl-10 ${theme === "dark"
+                      ? "bg-black border-zinc-800 text-white placeholder:text-gray-500 focus:border-red-600"
+                      : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-red-500"
+                      }`}
+                    required
+                  />
+                  {confirmPassword.length > 0 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Check className={`w-5 h-5 ${passwordsMatch
+                        ? theme === "dark" ? "text-green-500" : "text-green-600"
+                        : theme === "dark" ? "text-red-500" : "text-red-600"
+                        }`} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Role Selection */}
+              <div className="space-y-2">
+                <Label className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>
+                  Je suis un(e)
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setRole("teacher"); setSpecialty(""); }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${role === "teacher"
+                      ? theme === "dark"
+                        ? "border-red-600 bg-red-600/20 text-white"
+                        : "border-red-500 bg-red-50 text-gray-900"
+                      : theme === "dark"
+                        ? "border-zinc-700 bg-black text-gray-400 hover:border-zinc-600"
+                        : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                      }`}
+                  >
+                    <GraduationCap className="w-5 h-5" />
+                    <span className="font-medium">Professeur</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRole("student"); setSpecialty(""); }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${role === "student"
+                      ? theme === "dark"
+                        ? "border-red-600 bg-red-600/20 text-white"
+                        : "border-red-500 bg-red-50 text-gray-900"
+                      : theme === "dark"
+                        ? "border-zinc-700 bg-black text-gray-400 hover:border-zinc-600"
+                        : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                      }`}
+                  >
+                    <BookOpen className="w-5 h-5" />
+                    <span className="font-medium">Étudiant</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Specialty/Formation Selection */}
+              {role && (
+                <div className="space-y-2">
+                  <Label className={theme === "dark" ? "text-gray-200" : "text-gray-700"}>
+                    {role === "teacher" ? "Spécialité" : "Formation"}
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: "informatique", label: "Informatique" },
+                      { value: "physique", label: "Physique" },
+                      { value: "mathematiques", label: "Mathématiques" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setSpecialty(option.value as typeof specialty)}
+                        className={`p-2 rounded-lg border-2 text-sm font-medium transition-all ${specialty === option.value
+                          ? theme === "dark"
+                            ? "border-red-600 bg-red-600/20 text-white"
+                            : "border-red-500 bg-red-50 text-gray-900"
+                          : theme === "dark"
+                            ? "border-zinc-700 bg-black text-gray-400 hover:border-zinc-600"
+                            : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className={`w-full ${theme === "dark"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-red-500 hover:bg-red-600 text-white"
+                  } transition-all duration-200 group`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  CRÉER MON COMPTE
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </Button>
+            </form>
+
+            {/* Sign In Link */}
+            <div className="mt-6 text-center">
+              <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
+                Déjà un compte ?{' '}
+                <button
+                  onClick={() => onNavigate("signin")}
+                  className={`${theme === "dark"
+                    ? "text-red-400 hover:text-red-300"
+                    : "text-red-500 hover:text-red-600"
+                    } transition-colors font-medium`}
+                >
+                  Se connecter
+                </button>
+              </p>
+            </div>
+
+            {/* Terms */}
+            <div className="mt-4 text-center">
+              <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                En créant un compte, vous acceptez nos{' '}
+                <button
+                  onClick={() => onNavigate("terms")}
+                  className="underline hover:text-gray-300 transition-colors"
+                >
+                  conditions d'utilisation
+                </button>
+                {' '}et notre{' '}
+                <button
+                  onClick={() => onNavigate("privacy")}
+                  className="underline hover:text-gray-300 transition-colors"
+                >
+                  politique de confidentialité
+                </button>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

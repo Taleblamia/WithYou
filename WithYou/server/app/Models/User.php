@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+class User extends Authenticatable implements JWTSubject, MustVerifyEmail
+{
+    use Notifiable;
+
+    protected $table = 'users';
+    protected $primaryKey = 'id_user';
+
+    public $incrementing = false;
+    protected $keyType = 'string';
+
+    public $timestamps = false;
+
+    protected $fillable = [
+        'username',
+        'email',
+        'password_hash',
+    ];
+
+    protected $hidden = [
+        'password_hash',
+    ];
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password_changed_at' => 'datetime',
+    ];
+
+    /**
+     * Permet d'utiliser la colonne password_hash pour vérifier le mdp lors de la connection 
+     */
+    public function getAuthPassword()
+    {
+        return $this->password_hash;
+    }
+
+    /***** JWTSubject *****/
+
+    public function getJWTIdentifier()
+    {
+        // on retourne la clé primaire (UUID)
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        // tu peux ajouter des infos custom dans le token ici
+        return [];
+    }
+
+    /***** Relations *****/
+
+    // Un user peut posséder plusieurs salons (owner)
+    public function ownedSalons()
+    {
+        return $this->hasMany(Salon::class, 'owner_id', 'id_user');
+    }
+
+    // Un user peut participer à plusieurs salons via salon_member
+    public function salons()
+    {
+        return $this->belongsToMany(Salon::class, 'salon_member', 'user_id', 'salon_id')->withPivot(['role', 'join_date', 'is_active']);
+    }
+
+    // Un user peut envoyer plusieurs messages
+    public function messages()
+    {
+        return $this->hasMany(Message::class, 'user_id', 'id_user');
+    }
+}
